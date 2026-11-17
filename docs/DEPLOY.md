@@ -261,6 +261,11 @@ completely, so a boot service started from it would still be refused.
 | After copying data, requests fail because no provider key works | `.app/.env` not copied with the databases, so stored keys cannot be decrypted | Copy `.app/.env` from the source machine (step 5) and restart the agents. |
 | `npm ci` fetches from `registry.npmmirror.com` / fails | Upstream lockfile pins that mirror | `./llm` already passes `--replace-registry-host=always`; check your npm registry config. |
 
+| Chat: `HTTP 502: All 2 routed attempt(s) failed … (timeout, rate_limited) … retry time budget 45s exceeded` | Free providers overloaded (Google `503 high demand`, OpenRouter `429`) and the failover budget ran out | `FALLBACK_TIME_BUDGET_MS=120000` (the default in `agents.conf`; restart the agents). Add more providers/keys on agent 1 and `./llm clone`. Fewer agents sharing the same keys hit fewer 429s. |
+| A job stops after one reply, no summary | The model answered with its own `<tool_call>` syntax or a stray word instead of a ```` ```run ```` / ```` ```aether ```` block | Update aether-code: it now tells the agent and asks again. Otherwise say "continue" in the chat. |
+| Ollama agent: `not responding (no output for 4 min)` | Ollama runs on the CPU (no supported GPU) and every instance loads its own copy of the model | Run **one** Ollama instance with a small model (≤ 4B, e.g. `qwen2.5:3b`) and keep it Lead = *Never*; let FreeLLMAPI agents lead. `grep "inference compute" .runtime/ollama-*/server.log` shows `library=cpu` when there is no GPU. |
+| Copy button does nothing / `clip_set failed … pbcopy` in the chat log | Older aether-code copied with the server's macOS clipboard | Update aether-code: copy now happens in your browser. |
+
 Logs: `./llm logs <service> <port> [lines]`, or `.runtime/<service>-<port>/server.log`.
 
 ## Manual deployment (without the script)

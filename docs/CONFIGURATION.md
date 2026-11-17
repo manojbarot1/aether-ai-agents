@@ -30,6 +30,7 @@ One-off override: `BASE_PORT=5001 ./llm start freellm 2`.
 | `BIND_HOST` | `0.0.0.0` | Address FreeLLMAPI and Ollama listen on. `127.0.0.1` keeps them on this machine. |
 | `LAN_IP` | empty | This machine's LAN address. `./llm` prints `http://LAN_IP:<port>` URLs and warns when an instance does not answer there. |
 | `BASE_PORT` | `3001` | First FreeLLMAPI port; agent N uses `BASE_PORT + N - 1`. |
+| `FALLBACK_TIME_BUDGET_MS` | `120000` | (FreeLLMAPI's own, exported.) How long one request may keep failing over between providers. FreeLLMAPI's default is 45000, too short when free providers hang 30–60 s; restart the agents after changing it. |
 | `OLLAMA_BASE_PORT` | `11435` | First Ollama port (11434 is left to the Ollama app / system service). |
 | `OLLAMA_BIND_HOST` | `$BIND_HOST` | Ollama's listen address, if different. |
 | `OLLAMA_MODELS` | `~/.ollama/models` | (Ollama's own variable, `export` it.) Where instances find models. |

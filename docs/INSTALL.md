@@ -28,7 +28,10 @@ SSH, see [DEPLOY.md](DEPLOY.md) after step 1.
 
 Hardware: FreeLLMAPI agents are light (~110–150 MB RAM each); they call cloud
 providers. Ollama needs RAM for the models you run (an 8B model ≈ 6–8 GB per
-instance). Disk: ~700 MB for the build, plus models.
+instance). Without a GPU Ollama supports (most laptops' integrated graphics
+are not), models run on the CPU and are slow: use one instance with a small
+model (≤ 4B) as a helper, not as the team lead. Disk: ~700 MB for the build,
+plus models.
 
 Ports (all configurable, see [CONFIGURATION.md](CONFIGURATION.md)):
 `3001…` FreeLLMAPI, `11435…` Ollama, `3900` panel, `3910` Aether (localhost only).
