@@ -1,0 +1,44 @@
+/* Themes for the panel and the Aether chat inside it (the panel adds this file to the chat frame).
+   No data-theme attribute = follow the system's light/dark setting. Each theme sets the same
+   tokens as Aether Lite's ui.html, so both pages change together. */
+
+/* ── light base: light, rose, sand */
+:root:is([data-theme="light"],[data-theme="rose"],[data-theme="sand"]){color-scheme:light;
+  --glass:rgba(255,255,255,.42);--glass-strong:rgba(255,255,255,.66);--glass-sunken:rgba(255,255,255,.28);--glass-hover:rgba(255,255,255,.58);
+  --glass-rim:rgba(255,255,255,.85);--glass-rim-soft:rgba(255,255,255,.35);--glass-line:rgba(15,23,42,.07);
+  --glass-shadow:0 1px 1px rgba(15,23,42,.04),0 10px 30px -8px rgba(30,41,80,.18);--specular:rgba(255,255,255,.75);
+  --text:#0c1324;--text-2:rgba(12,19,36,.64);--text-3:rgba(12,19,36,.42);
+  --ok:#129a52;--err:#d42c2c;--err-soft:rgba(212,44,44,.13);--warn:#c27406;--code-bg:rgba(15,23,42,.08)}
+:root[data-theme="light"]{--bg-solid:#e8edf7;--ambient-a:#7aa2ff;--ambient-b:#c08bff;--ambient-c:#6fe3d4;--ambient-d:#ffb38a;--ambient-opacity:.55;
+  --accent:#2f6bff;--accent-2:#8b5cf6;--accent-soft:rgba(47,107,255,.14)}
+:root[data-theme="rose"]{--bg-solid:#f7e9ee;--ambient-a:#ff8fb1;--ambient-b:#c9a0ff;--ambient-c:#ffc4a8;--ambient-d:#ffd6e6;--ambient-opacity:.55;
+  --accent:#d6336c;--accent-2:#9c36b5;--accent-soft:rgba(214,51,108,.13);--text:#2a1020;--text-2:rgba(42,16,32,.64);--text-3:rgba(42,16,32,.42)}
+:root[data-theme="sand"]{--bg-solid:#f3ede2;--ambient-a:#f2c48d;--ambient-b:#e9a07a;--ambient-c:#c9d6a3;--ambient-d:#f7dfb8;--ambient-opacity:.5;
+  --accent:#b8621b;--accent-2:#8a5a2b;--accent-soft:rgba(184,98,27,.14);--text:#2b2116;--text-2:rgba(43,33,22,.66);--text-3:rgba(43,33,22,.44)}
+
+/* ── dark base: dark, midnight, ocean, forest, sunset, graphite */
+:root:is([data-theme="dark"],[data-theme="midnight"],[data-theme="ocean"],[data-theme="forest"],[data-theme="sunset"],[data-theme="graphite"]){color-scheme:dark;
+  --glass:rgba(28,32,46,.42);--glass-strong:rgba(36,41,58,.66);--glass-sunken:rgba(10,12,20,.28);--glass-hover:rgba(52,58,80,.5);
+  --glass-rim:rgba(255,255,255,.22);--glass-rim-soft:rgba(255,255,255,.06);--glass-line:rgba(255,255,255,.07);
+  --glass-shadow:0 1px 1px rgba(0,0,0,.2),0 12px 32px -8px rgba(0,0,0,.5);--specular:rgba(255,255,255,.16);
+  --text:#f2f4fa;--text-2:rgba(242,244,250,.66);--text-3:rgba(242,244,250,.4);
+  --ok:#34d17f;--err:#ff6363;--err-soft:rgba(255,99,99,.15);--warn:#f5a524;--code-bg:rgba(0,0,0,.3)}
+:root[data-theme="dark"]{--bg-solid:#0b0e17;--ambient-a:#2f4fd8;--ambient-b:#7c3aed;--ambient-c:#0f9f8f;--ambient-d:#b4532a;--ambient-opacity:.42;
+  --accent:#5b8cff;--accent-2:#a78bfa;--accent-soft:rgba(91,140,255,.18)}
+:root[data-theme="midnight"]{--bg-solid:#070a1f;--ambient-a:#3b2fd8;--ambient-b:#1d4ed8;--ambient-c:#6d28d9;--ambient-d:#0e7490;--ambient-opacity:.5;
+  --glass:rgba(22,26,58,.45);--glass-strong:rgba(28,33,72,.7);--glass-hover:rgba(48,56,110,.5);
+  --accent:#818cf8;--accent-2:#c084fc;--accent-soft:rgba(129,140,248,.2)}
+:root[data-theme="ocean"]{--bg-solid:#04161c;--ambient-a:#0e7490;--ambient-b:#0f766e;--ambient-c:#155e75;--ambient-d:#1d4ed8;--ambient-opacity:.5;
+  --glass:rgba(14,38,46,.45);--glass-strong:rgba(18,48,58,.7);--glass-hover:rgba(30,72,86,.5);
+  --accent:#22d3ee;--accent-2:#2dd4bf;--accent-soft:rgba(34,211,238,.17)}
+:root[data-theme="forest"]{--bg-solid:#07130c;--ambient-a:#15803d;--ambient-b:#4d7c0f;--ambient-c:#0f766e;--ambient-d:#a16207;--ambient-opacity:.45;
+  --glass:rgba(18,36,24,.45);--glass-strong:rgba(24,46,31,.7);--glass-hover:rgba(38,70,48,.5);
+  --accent:#4ade80;--accent-2:#a3e635;--accent-soft:rgba(74,222,128,.16)}
+:root[data-theme="sunset"]{--bg-solid:#1a0b0f;--ambient-a:#c2410c;--ambient-b:#be185d;--ambient-c:#7c2d12;--ambient-d:#a21caf;--ambient-opacity:.48;
+  --glass:rgba(48,22,28,.45);--glass-strong:rgba(60,28,34,.7);--glass-hover:rgba(90,40,50,.5);
+  --accent:#fb923c;--accent-2:#f472b6;--accent-soft:rgba(251,146,60,.18)}
+:root[data-theme="graphite"]{--bg-solid:#111214;--ambient-a:#3f3f46;--ambient-b:#52525b;--ambient-c:#27272a;--ambient-d:#44403c;--ambient-opacity:.35;
+  --glass:rgba(38,38,42,.5);--glass-strong:rgba(46,46,50,.75);--glass-sunken:rgba(0,0,0,.28);--glass-hover:rgba(64,64,70,.55);
+  --accent:#e4e4e7;--accent-2:#a1a1aa;--accent-soft:rgba(228,228,231,.14)}
+/* graphite's accent is near-white: keep text on accent buttons readable */
+:root[data-theme="graphite"] .btn.primary,:root[data-theme="graphite"] .m.user .bub{color:#111214}

@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aether</title>
+<script>
+// Apply the saved theme before anything paints (no flash of the wrong theme).
+try { const t = localStorage.getItem('aetherTheme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+</script>
+<style>
+/* ── Aether Lite design tokens and components, copied from aether-code/ui.html ── */
+:root{color-scheme:light dark;
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --r-xl:28px;--r-lg:22px;--r-md:16px;--r-sm:12px;--r-pill:999px;
+  --spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);
+  --bg-solid:#e8edf7;--ambient-a:#7aa2ff;--ambient-b:#c08bff;--ambient-c:#6fe3d4;--ambient-d:#ffb38a;--ambient-opacity:.55;
+  --glass:rgba(255,255,255,.42);--glass-strong:rgba(255,255,255,.66);--glass-sunken:rgba(255,255,255,.28);--glass-hover:rgba(255,255,255,.58);
+  --glass-rim:rgba(255,255,255,.85);--glass-rim-soft:rgba(255,255,255,.35);--glass-line:rgba(15,23,42,.07);
+  --glass-shadow:0 1px 1px rgba(15,23,42,.04),0 10px 30px -8px rgba(30,41,80,.18);--specular:rgba(255,255,255,.75);
+  --text:#0c1324;--text-2:rgba(12,19,36,.64);--text-3:rgba(12,19,36,.42);
+  --accent:#2f6bff;--accent-2:#8b5cf6;--accent-soft:rgba(47,107,255,.14);--ok:#129a52;--err:#d42c2c;--err-soft:rgba(212,44,44,.13);--warn:#c27406;
+  --code-bg:rgba(15,23,42,.08)}
+@media (prefers-color-scheme:dark){:root{
+  --bg-solid:#0b0e17;--ambient-a:#2f4fd8;--ambient-b:#7c3aed;--ambient-c:#0f9f8f;--ambient-d:#b4532a;--ambient-opacity:.42;
+  --glass:rgba(28,32,46,.42);--glass-strong:rgba(36,41,58,.66);--glass-sunken:rgba(10,12,20,.28);--glass-hover:rgba(52,58,80,.5);
+  --glass-rim:rgba(255,255,255,.22);--glass-rim-soft:rgba(255,255,255,.06);--glass-line:rgba(255,255,255,.07);
+  --glass-shadow:0 1px 1px rgba(0,0,0,.2),0 12px 32px -8px rgba(0,0,0,.5);--specular:rgba(255,255,255,.16);
+  --text:#f2f4fa;--text-2:rgba(242,244,250,.66);--text-3:rgba(242,244,250,.4);
+  --accent:#5b8cff;--accent-2:#a78bfa;--accent-soft:rgba(91,140,255,.18);--ok:#34d17f;--err:#ff6363;--err-soft:rgba(255,99,99,.15);--warn:#f5a524;
+  --code-bg:rgba(0,0,0,.3)}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:transparent}
+body{font-family:var(--font);font-size:13.5px;line-height:1.45;color:var(--text);-webkit-font-smoothing:antialiased;overflow:hidden;user-select:none;-webkit-user-select:none;cursor:default}
+input,textarea,select,button{font:inherit;color:inherit}input,textarea{user-select:text;-webkit-user-select:text}
+::selection{background:var(--accent-soft)}
+/* ambient light field */
+.ambient{position:fixed;inset:-20%;z-index:-1;opacity:var(--ambient-opacity);filter:blur(80px) saturate(140%);pointer-events:none}
+.ambient i{position:absolute;border-radius:50%;animation:drift 38s var(--ease) infinite alternate}
+.ambient i:nth-child(1){width:52vw;height:52vw;left:6%;top:4%;background:var(--ambient-a)}
+.ambient i:nth-child(2){width:44vw;height:44vw;right:4%;top:18%;background:var(--ambient-b);animation-duration:46s;animation-delay:-12s}
+.ambient i:nth-child(3){width:40vw;height:40vw;left:28%;bottom:0;background:var(--ambient-c);animation-duration:52s;animation-delay:-24s}
+.ambient i:nth-child(4){width:26vw;height:26vw;right:22%;bottom:10%;background:var(--ambient-d);animation-duration:41s;animation-delay:-6s;opacity:.7}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(6vw,-4vh) scale(1.08)}100%{transform:translate(-4vw,5vh) scale(.94)}}
+@keyframes rise{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
+/* glass surface with rim light + specular */
+.glass{position:relative;isolation:isolate;background:var(--glass);-webkit-backdrop-filter:blur(30px) saturate(185%);backdrop-filter:blur(30px) saturate(185%);
+  border-radius:var(--r-lg);box-shadow:var(--glass-shadow),inset 0 0 0 .5px var(--glass-line)}
+.glass.strong{background:var(--glass-strong)}
+.glass.sunken{background:var(--glass-sunken);box-shadow:inset 0 1px 2px rgba(0,0,0,.06),inset 0 0 0 .5px var(--glass-line)}
+.glass::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:1;
+  background:linear-gradient(150deg,var(--glass-rim) 0%,var(--glass-rim-soft) 28%,transparent 52%,var(--glass-rim-soft) 82%,var(--glass-rim) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.glass::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(120% 60% at 20% -10%,var(--specular),transparent 55%);opacity:.55;pointer-events:none;z-index:-1}
+.glass.sunken::after,.glass.flat::after{display:none}
+/* buttons */
+.btn{--h:34px;position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:var(--h);padding:0 15px;border:0;border-radius:var(--r-pill);
+  background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:0 1px 2px rgba(15,23,42,.06),inset 0 0 0 .5px var(--glass-line),inset 0 1px 0 var(--glass-rim-soft);font-weight:560;font-size:13px;white-space:nowrap;cursor:pointer;
+  transition:transform .35s var(--spring),background .2s,box-shadow .2s,opacity .2s}
+.btn:hover{background:var(--glass-hover)}.btn:active{transform:scale(.96);transition-duration:.12s}
+.btn:disabled{opacity:.5;cursor:default}.btn:disabled:active{transform:none}
+.btn.sm{--h:28px;padding:0 11px;font-size:12px}.btn.icon{padding:0;width:var(--h)}
+.btn.primary{color:#fff;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 55%),linear-gradient(135deg,var(--accent),var(--accent-2));
+  box-shadow:0 6px 18px -6px color-mix(in srgb,var(--accent) 70%,transparent),inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 .5px rgba(255,255,255,.2)}
+.btn.primary:hover{filter:brightness(1.07) saturate(1.05)}
+.btn.danger{color:var(--err)}.btn.danger:hover{background:var(--err-soft)}
+.btn.ghost{background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}.btn.ghost:hover{background:var(--glass-hover)}
+/* inputs */
+.field{height:34px;width:100%;padding:0 14px;border:0;border-radius:var(--r-sm);background:var(--glass-sunken);box-shadow:inset 0 1px 2px rgba(0,0,0,.06),inset 0 0 0 .5px var(--glass-line);outline:none;transition:box-shadow .2s}
+.field::placeholder{color:var(--text-3)}.field:focus{box-shadow:inset 0 0 0 1.5px var(--accent),0 0 0 4px var(--accent-soft)}
+select.field{appearance:none;padding-right:28px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23888' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+select.field option{color:#111}
+input[type=color].field{padding:3px;width:46px;cursor:pointer}
+.segmented{display:inline-flex;padding:3px;gap:2px;border-radius:var(--r-pill);background:var(--glass-sunken);box-shadow:inset 0 0 0 .5px var(--glass-line)}
+.segmented button{height:28px;padding:0 13px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--text-2);font-size:12.5px;font-weight:560;cursor:pointer;transition:background .25s var(--ease),color .2s,box-shadow .25s}
+.segmented button:hover{color:var(--text)}
+.segmented button[aria-pressed=true]{color:var(--text);background:var(--glass-strong);box-shadow:0 1px 3px rgba(15,23,42,.1),inset 0 0 0 .5px var(--glass-line),inset 0 1px 0 var(--glass-rim-soft)}
+.badge{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:var(--r-pill);font-size:11px;font-weight:600;background:var(--glass-sunken);color:var(--text-2);white-space:nowrap}
+.badge.ok{background:rgba(52,209,127,.16);color:var(--ok)}.badge.err{background:var(--err-soft);color:var(--err)}.badge.warn{background:rgba(245,165,36,.16);color:var(--warn)}
+.badge.accent{background:var(--accent-soft);color:var(--accent)}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--glass-line);border-radius:10px;border:3px solid transparent;background-clip:content-box}::-webkit-scrollbar-track{background:transparent}
+/* ── panel ─────────────────────────────────────────────────────────────────── */
+[hidden]{display:none!important}
+html,body{background:var(--bg-solid)}
+.app{height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.topbar{display:flex;align-items:center;gap:12px;margin:12px 12px 0;padding:10px 14px;border-radius:var(--r-lg)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:16px;flex:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,0) 55%),linear-gradient(135deg,var(--accent),var(--accent-2));
+  box-shadow:0 6px 16px -6px color-mix(in srgb,var(--accent) 70%,transparent),inset 0 1px 0 rgba(255,255,255,.45)}
+.brand b{display:block;font-size:14.5px;font-weight:650;letter-spacing:-.01em}
+.brand small{display:block;font-size:11.5px;color:var(--text-2);white-space:nowrap}
+.spacer{flex:1}
+.theme{display:flex;align-items:center;gap:6px}
+.theme .field{height:30px;width:auto;padding-left:12px;font-size:12.5px}
+.busy .spin,.spin{width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.view{min-height:0;position:relative}
+.scroll{overflow:auto}
+/* chat */
+#view-chat{display:grid;grid-template-rows:auto minmax(0,1fr)}
+#view-chat iframe{display:block;width:100%;height:100%;border:0;background:transparent}
+.teambar{display:flex;align-items:center;gap:10px;margin:10px 12px 0;padding:8px 10px 8px 14px;border-radius:var(--r-md);min-width:0}
+.teambar .lbl{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;flex:none}
+.chips{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);background:var(--glass-sunken);
+  box-shadow:inset 0 0 0 .5px var(--glass-line);font-size:12px;font-weight:560;white-space:nowrap;flex:none}
+.chip small{color:var(--text-3);font-weight:500}
+.chip .dot{width:7px;height:7px}
+.chip.healthy .dot{box-shadow:0 0 0 2.5px color-mix(in srgb,var(--ok) 20%,transparent)}
+.chip.stopped{color:var(--text-2)}.chip.stopped .dot{background:var(--err)}
+.chip.ext .dot{background:var(--accent)}
+.teambar .summary{font-size:12px;color:var(--text-2);white-space:nowrap;flex:none}
+.offline{position:absolute;inset:12px;display:grid;place-items:center;text-align:center}
+.offline .inner{max-width:420px;padding:28px}
+.offline h2{margin:0 0 6px;font-size:18px;font-weight:650}
+.offline p{margin:0 0 18px;color:var(--text-2)}
+/* cards */
+main{max-width:1120px;margin:0 auto;padding:16px 12px 40px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.card{border-radius:var(--r-lg);overflow:hidden;animation:rise .45s var(--ease) both}
+.card-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--glass-line)}
+.card-head h2{margin:0;font-size:14.5px;font-weight:650;display:flex;align-items:center;gap:8px}
+.card-head .ico{font-size:15px}
+.card-head .sub{color:var(--text-2);font-size:12.5px}
+.intro{padding:14px 16px;color:var(--text-2);font-size:12.5px}
+.intro b{color:var(--text)}
+.grow{flex:1}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.count{display:flex;align-items:center;gap:8px;color:var(--text-2);font-size:12.5px}
+.count .field{width:64px;height:30px;padding:0 10px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 16px;border-bottom:.5px solid var(--glass-line);white-space:nowrap}
+th{color:var(--text-3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+tr:last-child td{border-bottom:0}
+td.actions{text-align:right;width:1%}
+td.actions .btns{display:inline-flex;gap:6px}
+.state{display:inline-flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);display:inline-block;flex:none}
+.healthy .dot,.dot.healthy{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+.starting .dot,.dot.starting{background:var(--warn)}
+.dot.stopped{background:var(--err)}
+.urls a,.agentcell a{color:var(--accent);text-decoration:none;margin-right:12px}
+.urls a:hover,.agentcell a:hover{text-decoration:underline}
+.urls .off{color:var(--text-3);margin-right:12px}
+.agentcell .none{color:var(--text-3)}
+tr.stopped td{color:var(--text-2)}
+.port .badge{margin-left:6px}
+.empty{padding:16px;color:var(--text-2)}
+.more{padding:8px 16px;border-top:.5px solid var(--glass-line)}
+.linkbtn{border:0;background:none;color:var(--accent);font-size:12.5px;font-weight:560;cursor:pointer;padding:4px 0}
+.error{padding:12px 16px;color:var(--err);border-radius:var(--r-md)}
+.output pre{margin:0;padding:14px 16px;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;
+  user-select:text;-webkit-user-select:text;background:var(--code-bg)}
+/* defaults for new agents (Model servers tab) */
+.defaults{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-bottom:.5px solid var(--glass-line);background:var(--glass-sunken)}
+.defaults .lbl{font-size:12px;color:var(--text-2);font-weight:560;margin-right:2px}
+.defaults .field{height:30px;font-size:12.5px;padding:0 10px}
+.defaults .m{width:200px}.defaults .r{width:190px}.defaults .l{width:auto;padding-right:28px}
+.note{font-size:12px;color:var(--ok)}.note.err{color:var(--err)}
+/* agents */
+.agents{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.agent{border-radius:var(--r-lg);padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;animation:rise .45s var(--ease) both}
+.agent .top{display:flex;align-items:center;gap:10px}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:15px;flex:none;box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 3px 8px -3px rgba(0,0,0,.35)}
+.agent .name{font-weight:650;font-size:14px;height:32px}
+.agent .rows{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;align-items:center}
+.agent .rows label{font-size:12px;color:var(--text-2)}
+.agent .rows .field{height:32px;font-size:12.5px;padding:0 11px}
+.agent .rows select.field{padding-right:28px}
+.agent .modelrow{display:flex;gap:6px}
+.agent .look{display:flex;gap:6px;align-items:center}
+.agent .look .field{width:60px;text-align:center}
+.agent .where{font-size:11.5px;color:var(--text-3);display:flex;align-items:center;gap:6px;min-width:0}
+.agent .where span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent .foot{display:flex;align-items:center;gap:8px}
+.agent.new{border:1.5px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
+.hint{font-size:11.5px;color:var(--text-3)}
+@media (max-width:760px){
+  .topbar{flex-wrap:wrap;gap:8px}.brand small{display:none}
+  .teambar{flex-wrap:wrap}.teambar .summary{display:none}
+  th,td{padding:8px 10px}
+  .defaults .m,.defaults .r{width:100%}
+}
+</style>
+<link rel="stylesheet" href="/themes.css">
+</head>
+<body>
+<div class="ambient"><i></i><i></i><i></i><i></i></div>
+<div class="app">
+  <header class="topbar glass strong">
+    <div class="brand"><span class="logo">✦</span><div><b>Aether</b><small>AI team on your own models</small></div></div>
+    <div class="segmented" role="tablist" aria-label="View">
+      <button role="tab" data-tab="chat" aria-pressed="false">💬 Chat</button>
+      <button role="tab" data-tab="agents" aria-pressed="false">🤖 Agents</button>
+      <button role="tab" data-tab="servers" aria-pressed="false" title="FreeLLMAPI and Ollama servers your agents run on">🖥 Model servers</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="badge warn busy" id="busy" hidden><span class="spin"></span><span id="busy-text"></span></span>
+    <label class="theme" title="Theme"><span aria-hidden="true">🎨</span><select class="field" id="theme" aria-label="Theme"></select></label>
+    <span class="badge" id="lan" hidden></span>
+  </header>
+
+  <!-- 💬 Chat -->
+  <section class="view" id="view-chat" hidden>
+    <div class="teambar glass" id="teambar" hidden>
+      <span class="lbl">Team</span>
+      <div class="chips" id="chips"></div>
+      <span class="summary" id="team-summary"></span>
+      <button class="btn sm primary" id="team-start" hidden></button>
+    </div>
+    <iframe id="chat-frame" title="Aether chat"></iframe>
+    <div class="offline glass" id="chat-off" hidden>
+      <div class="inner">
+        <h2>Chat is not running</h2>
+        <p>Start Aether to talk to your AI team. Running FreeLLMAPI and Ollama servers join as agents.</p>
+        <button class="btn primary" data-start-chat>Start chat</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🤖 Agents -->
+  <section class="view scroll" id="view-agents" hidden>
+    <main>
+      <section class="card glass">
+        <div class="card-head">
+          <h2><span class="ico">🤖</span>Agents</h2>
+          <span class="sub">who is on your team, the model each one uses, and what they do</span>
+          <span class="grow"></span>
+          <button class="btn primary" id="agent-add">＋ Add agent</button>
+        </div>
+        <div class="intro">
+          <b>Lead</b> decides who plans big jobs and writes the summary at the end: <b>Prefer</b> makes an agent the usual lead,
+          <b>Never</b> keeps it a helper (small local models plan poorly). Changes apply to the next message.
+        </div>
+      </section>
+      <div class="error glass" id="agents-error" hidden></div>
+      <div class="offline glass" id="agents-off" style="position:static;padding:8px" hidden>
+        <div class="inner">
+          <h2>Chat is not running</h2>
+          <p>Agents are stored by Aether. Start it to see and edit them.</p>
+          <button class="btn primary" data-start-chat>Start chat</button>
+        </div>
+      </div>
+      <div class="agents" id="agents"></div>
+    </main>
+  </section>
+
+  <!-- 🖥 Model servers -->
+  <section class="view scroll" id="view-servers" hidden>
+    <main>
+      <div class="error glass" id="error" hidden></div>
+      <div class="stack" id="services"></div>
+      <section class="card glass output" id="output-card" hidden>
+        <div class="card-head">
+          <h2 id="output-title">Output</h2>
+          <span class="grow"></span>
+          <button class="btn sm" id="output-close">Close</button>
+        </div>
+        <pre id="output"></pre>
+      </section>
+    </main>
+  </section>
+</div>
+
+<datalist id="roles">
+  <option value="Software Engineer"><option value="Architect"><option value="Frontend Developer"><option value="Backend Developer">
+  <option value="Full-stack Developer"><option value="DevOps Engineer"><option value="QA / Tester"><option value="Code Reviewer">
+  <option value="Security Engineer"><option value="Data Engineer"><option value="Researcher"><option value="Technical Writer">
+  <option value="Assistant · local model">
+</datalist>
+
+<template id="service-tpl">
+  <section class="card glass">
+    <div class="card-head">
+      <h2><span class="ico" data-ico></span><span data-label></span></h2>
+      <span class="sub" data-sub></span>
+      <span class="grow"></span>
+      <div class="controls">
+        <label class="count">Instances <input class="field" type="number" min="1" max="20" value="1" data-count></label>
+        <button class="btn primary" data-apply>Start / scale</button>
+        <button class="btn danger" data-stop-all>Stop all</button>
+        <button class="btn" data-clone hidden title="Copy agent 1's keys and settings onto every other server">Clone 1 → all</button>
+        <button class="btn" data-update hidden title="git pull and rebuild FreeLLMAPI">Update</button>
+        <button class="btn" data-sync hidden title="Add every running FreeLLMAPI and Ollama server to Aether as an agent">Sync agents</button>
+        <button class="btn" data-open hidden>Open chat</button>
+      </div>
+    </div>
+    <div class="defaults" data-defaults hidden>
+      <span class="lbl">New agents from these servers:</span>
+      <input class="field m" data-d-model placeholder="model" title="Model for new agents" autocomplete="off">
+      <input class="field r" data-d-role list="roles" placeholder="role" title="Role for new agents" autocomplete="off">
+      <select class="field l" data-d-lead title="Can new agents lead the team?">
+        <option value="">Lead: auto</option><option value="prefer">Lead: prefer</option><option value="never">Lead: never</option>
+      </select>
+      <button class="btn sm" data-d-save>Save</button>
+      <span class="note" data-d-note></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>State</th><th>Port</th><th>PID</th><th>Address</th><th>Agent</th><th></th></tr></thead>
+        <tbody data-rows></tbody>
+      </table>
+    </div>
+    <div class="empty" data-empty hidden>Not running yet.</div>
+    <div class="more" data-more hidden><button class="linkbtn" data-more-btn></button></div>
+  </section>
+</template>
+
+<script>
+(() => {
+  // Token comes from the URL fragment (#token=...), which never reaches the server logs.
+  // The chat (same origin, in the iframe) reads the same stored token.
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (params.get('token')) {
+    try { sessionStorage.setItem('panelToken', params.get('token')); } catch {}
+    history.replaceState(null, '', location.pathname);
+  }
+  let token = '';
+  try { token = sessionStorage.getItem('panelToken') || ''; } catch {}
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Only touch the DOM when the markup really changed (rebuilding identical markup flickers).
+  const setHTML = (el, html) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+  const cards = {};
+  const ICONS = { aether: '💬', freellm: '⚡', ollama: '🦙' };
+  const SVC_LABEL = { freellm: 'FreeLLMAPI', ollama: 'Ollama' };
+  const TABS = ['chat', 'agents', 'servers'];
+  let busy = false, chatUp = null, tab = null, last = null;
+
+  // ── themes (stored per browser; the chat frame gets the same one)
+  const THEMES = [['', 'System'], ['light', 'Light'], ['dark', 'Dark'], ['midnight', 'Midnight'], ['ocean', 'Ocean'],
+    ['forest', 'Forest'], ['sunset', 'Sunset'], ['graphite', 'Graphite'], ['rose', 'Rose'], ['sand', 'Sand']];
+  let theme = document.documentElement.dataset.theme || '';
+  $('theme').innerHTML = THEMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('theme').value = theme;
+  function applyTheme(root) { if (theme) root.dataset.theme = theme; else delete root.dataset.theme; }
+  function themeFrame() {
+    try {
+      const d = $('chat-frame').contentDocument;
+      if (!d || !d.head) return;
+      if (!d.getElementById('panel-themes')) {
+        const l = d.createElement('link'); l.id = 'panel-themes'; l.rel = 'stylesheet'; l.href = '/themes.css';
+        d.head.appendChild(l);
+      }
+      applyTheme(d.documentElement);
+    } catch {}
+  }
+  $('theme').onchange = () => {
+    theme = $('theme').value;
+    try { theme ? localStorage.setItem('aetherTheme', theme) : localStorage.removeItem('aetherTheme'); } catch {}
+    applyTheme(document.documentElement);
+    themeFrame();
+  };
+  $('chat-frame').addEventListener('load', themeFrame);
+
+  // ── tabs: #chat / #agents / #servers (#services still works)
+  function show(name) {
+    if (name === 'services') name = 'servers';
+    if (!TABS.includes(name)) name = 'servers';
+    tab = name;
+    for (const b of document.querySelectorAll('[data-tab]')) b.setAttribute('aria-pressed', String(b.dataset.tab === name));
+    for (const t of TABS) $(`view-${t}`).hidden = t !== name;
+    if (location.hash !== `#${name}`) history.replaceState(null, '', `#${name}`);
+    if (name === 'chat') syncChat();
+    if (name === 'agents') loadAgents();
+  }
+  for (const b of document.querySelectorAll('[data-tab]')) b.onclick = () => show(b.dataset.tab);
+  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (TABS.includes(h) || h === 'services') show(h); });
+
+  // The chat frame loads the first time the tab is shown, and reloads when Aether comes back.
+  function syncChat() {
+    const frame = $('chat-frame');
+    $('chat-off').hidden = chatUp !== false;
+    frame.hidden = !chatUp;
+    if (chatUp && tab === 'chat' && !frame.getAttribute('src')) frame.src = '/chat/';
+  }
+  for (const b of document.querySelectorAll('[data-start-chat]')) b.onclick = () => act({ action: 'start', service: 'aether' });
+
+  // ── panel API
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { ...opts, headers: { 'x-panel-token': token, 'x-llm-panel': '1', 'content-type': 'application/json', ...(opts.headers || {}) } });
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      const t = prompt('Access token (PANEL_TOKEN in agents.local.conf):');
+      if (t) { token = t; try { sessionStorage.setItem('panelToken', t); } catch {} return api(path, opts); }
+    }
+    if (!res.ok) throw new Error(body.error || res.statusText);
+    return body;
+  }
+  // Aether's own API (the same calls its chat page makes), through the panel's /chat/ proxy.
+  async function aether(name, ...args) {
+    const res = await fetch(`/chat/api/${name}`, {
+      method: 'POST', body: JSON.stringify({ args }),
+      headers: { 'content-type': 'application/json', 'x-aether-web': '1', 'x-aether-token': token },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || res.statusText);
+    return body.result;
+  }
+  // Tell the chat its agents changed, so its sidebar updates without a reload.
+  function chatConfigChanged() { try { $('chat-frame').contentWindow.aetherReloadConfig?.(); } catch {} }
+
+  function showError(msg) { const e = $('error'); e.textContent = msg || ''; e.hidden = !msg; }
+
+  function showOutput(title, text) {
+    $('output-title').textContent = title;
+    $('output').textContent = text || '(no output)';
+    $('output-card').hidden = false;
+    if (tab === 'servers') $('output-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('output-close').onclick = () => { $('output-card').hidden = true; };
+
+  async function act(body, confirmText) {
+    if (confirmText && !confirm(confirmText)) return null;
+    setBusy(true, 'Working…');
+    const before = teamKey(last);
+    let r = null;
+    try {
+      r = await api('/api/action', { method: 'POST', body: JSON.stringify(body) });
+      showOutput((r.ok ? '' : 'FAILED: ') + r.command, r.output);
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setBusy(false);
+      await refresh();
+      chatCatchUp(before);
+    }
+    return r;
+  }
+
+  // After an action the chat needs to know: new config when the agent list changed (a sync added
+  // or removed one), else just a fresh online check.
+  const teamKey = data => (data?.engineers || []).map(e => e.id).join(',');
+  function chatCatchUp(before) {
+    const frame = $('chat-frame');
+    if (!chatUp || !frame.getAttribute('src')) return;
+    if (teamKey(last) !== before) { chatConfigChanged(); if (tab === 'agents') loadAgents(); return; }
+    try { frame.contentWindow.refreshStatus?.(); } catch {}
+  }
+
+  async function showLogs(service, port) {
+    try {
+      const r = await api(`/api/logs?service=${service}&port=${port}`);
+      showOutput(`${service} :${port} — last 300 log lines`, r.log);
+      const pre = $('output'); pre.scrollTop = pre.scrollHeight;
+    } catch (err) { showError(err.message); }
+  }
+
+  function setBusy(on, text) {
+    busy = on;
+    $('busy').hidden = !on;
+    $('busy-text').textContent = text || '';
+    document.querySelectorAll('[data-apply],[data-stop-all],[data-clone],[data-update],[data-sync],[data-row],[data-start-chat],#team-start').forEach(b => { b.disabled = on; });
+  }
+
+  // ── Model servers tab
+  const DEFAULTS = { freellm: { model: 'auto', role: 'Software Engineer', lead: '' }, ollama: { model: '', role: 'Assistant · local model', lead: 'never' } };
+  let defaults = null;
+  async function loadDefaults() {
+    try { defaults = await api('/api/defaults'); } catch { defaults = {}; }
+    for (const svc of ['freellm', 'ollama']) {
+      const c = cards[svc]; if (!c) continue;
+      const d = { ...DEFAULTS[svc], ...(defaults[svc] || {}) };
+      c.q('[data-d-model]').value = d.model;
+      c.q('[data-d-role]').value = d.role;
+      c.q('[data-d-lead]').value = d.lead;
+    }
+  }
+
+  // Model suggestions for a server, from Aether (it knows each FreeLLMAPI agent's key).
+  async function modelsFor(port, engId) {
+    const out = [];
+    if (last?.services.find(s => s.name === 'freellm' && port >= s.basePort && port < s.basePort + 20)) out.push('auto', 'auto:coding');
+    if (!chatUp) return out;
+    try {
+      const r = await aether('list_models', { id: engId || '', provider: 'openai_api', base_url: `http://127.0.0.1:${port}/v1` });
+      for (const m of r.models || []) if (!out.includes(m.id)) out.push(m.id);
+    } catch {}
+    return out;
+  }
+
+  function card(svc) {
+    if (cards[svc.name]) return cards[svc.name];
+    const node = $('service-tpl').content.firstElementChild.cloneNode(true);
+    const q = s => node.querySelector(s);
+    q('[data-ico]').textContent = ICONS[svc.name] || '•';
+    q('[data-label]').textContent = svc.label;
+    q('[data-sub]').textContent = `ports from ${svc.basePort}`;
+    // The count follows what runs until you type in it.
+    let edited = false;
+    q('[data-count]').addEventListener('input', () => { edited = true; });
+    q('[data-apply]').onclick = () => {
+      if (svc.name === 'aether') return act({ action: 'start', service: 'aether' });
+      const n = Number(q('[data-count]').value);
+      if (!Number.isInteger(n) || n < 1 || n > 20) return showError('Instances must be 1–20.');
+      act({ action: 'start', service: svc.name, count: n }).then(() => { edited = false; });
+    };
+    q('[data-stop-all]').onclick = () => act({ action: 'stop', service: svc.name }, `Stop every ${svc.label} server?`);
+    if (svc.name === 'aether') {
+      q('[data-count]').closest('label').hidden = true;
+      q('[data-apply]').textContent = 'Start';
+      q('[data-stop-all]').textContent = 'Stop';
+      q('[data-stop-all]').onclick = () => act({ action: 'stop', service: 'aether' }, 'Stop the chat? Replies in progress are cancelled.');
+      q('[data-sync]').hidden = false;
+      q('[data-sync]').onclick = () => act({ action: 'sync' });
+      q('[data-open]').onclick = () => show('chat');
+      q('[data-sub]').textContent = 'the team chat; running FreeLLMAPI and Ollama servers join it as agents';
+    }
+    if (svc.name === 'freellm') {
+      q('[data-clone]').hidden = false;
+      q('[data-update]').hidden = false;
+      q('[data-clone]').onclick = () => act({ action: 'clone' }, 'Copy server 1 onto every other FreeLLMAPI server? Each one restarts, and anything changed directly on it is replaced (old DB kept as .bak).');
+      q('[data-update]').onclick = () => act({ action: 'update' }, 'Pull the latest FreeLLMAPI and rebuild? Restart the servers afterwards to use it.');
+    }
+    if (svc.name === 'freellm' || svc.name === 'ollama') {
+      q('[data-defaults]').hidden = false;
+      const model = q('[data-d-model]');
+      model.placeholder = svc.name === 'ollama' ? 'largest model it has' : 'auto';
+      const list = document.createElement('datalist');
+      list.id = `models-${svc.name}`;
+      node.appendChild(list);
+      model.setAttribute('list', list.id);
+      let loaded = false;
+      model.addEventListener('focus', async () => {
+        if (loaded) return;
+        const inst = (last?.services.find(x => x.name === svc.name)?.instances || []).find(i => i.state === 'healthy');
+        if (!inst) return;
+        loaded = true;
+        const eng = (last?.engineers || []).find(e => e.port === inst.port);
+        list.innerHTML = (await modelsFor(inst.port, eng?.id)).map(m => `<option value="${esc(m)}">`).join('');
+      });
+      q('[data-d-save]').onclick = async () => {
+        const note = q('[data-d-note]');
+        try {
+          defaults = await api('/api/defaults', { method: 'POST', body: JSON.stringify({ [svc.name]: {
+            model: model.value.trim(), role: q('[data-d-role]').value.trim(), lead: q('[data-d-lead]').value } }) });
+          note.className = 'note'; note.textContent = '✓ Saved — used for agents added from now on';
+        } catch (err) { note.className = 'note err'; note.textContent = err.message; }
+        setTimeout(() => { note.textContent = ''; }, 4000);
+      };
+    }
+    q('[data-more-btn]').onclick = () => { c.showStopped = !c.showStopped; if (last) render(last); };
+    $('services').appendChild(node);
+    const c = { node, q, showStopped: false, seed(n) { if (!edited) q('[data-count]').value = Math.max(1, n); } };
+    cards[svc.name] = c;
+    if (svc.name === 'freellm' || svc.name === 'ollama') loadDefaults();
+    return c;
+  }
+
+  function button(text, cls, onclick) {
+    const b = document.createElement('button');
+    b.textContent = text; b.className = `btn sm ${cls || ''}`; b.dataset.row = '1'; b.disabled = busy; b.onclick = onclick;
+    return b;
+  }
+
+  function render(data) {
+    $('lan').hidden = !data.lanIp;
+    $('lan').textContent = data.lanIp ? `LAN ${data.lanIp}` : '';
+    const order = ['aether', 'freellm', 'ollama'];
+    const services = data.services.filter(s => order.includes(s.name)).sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+    for (const svc of services) {
+      const c = card(svc);
+      const running = svc.instances.filter(i => i.state !== 'stopped');
+      if (svc.name === 'aether') {
+        const up = svc.instances.some(i => i.state === 'healthy');
+        c.q('[data-open]').hidden = !up;
+        c.q('[data-sync]').hidden = !up;
+        c.q('[data-apply]').hidden = running.length > 0;
+        c.q('[data-stop-all]').hidden = !running.length;
+        if (chatUp === false && up) $('chat-frame').removeAttribute('src');   // came back: load it fresh
+        chatUp = up;
+        syncChat();
+      } else {
+        c.q('[data-sub]').textContent = svc.instances.length
+          ? `${running.length} of ${svc.instances.length} running · ports from ${svc.basePort}`
+          : `ports from ${svc.basePort}`;
+        c.q('[data-stop-all]').hidden = !running.length;
+      }
+      // Stopped servers fold away behind "Show N stopped" (the chat's is always shown).
+      const folded = svc.name !== 'aether' && !c.showStopped;
+      const shown = folded ? running : svc.instances;
+      const stoppedN = svc.instances.length - running.length;
+      c.q('[data-more]').hidden = svc.name === 'aether' || !stoppedN;
+      c.q('[data-more-btn]').textContent = c.showStopped ? 'Hide stopped' : `Show ${stoppedN} stopped`;
+      c.q('.table-wrap').hidden = !shown.length;
+      const rows = c.q('[data-rows]');
+      rows.replaceChildren();
+      c.seed(running.length);
+      c.q('[data-empty]').hidden = shown.length > 0;
+      c.q('[data-empty]').textContent = svc.instances.length ? 'Nothing running.' : 'Not running yet.';
+      for (const inst of shown) {
+        const tr = document.createElement('tr');
+        tr.className = inst.state;
+        const state = document.createElement('td');
+        state.innerHTML = '<span class="state"><span class="dot"></span><span></span></span>';
+        state.firstChild.classList.add(inst.state);
+        state.querySelector('span span:last-child').textContent = inst.state;
+        const port = document.createElement('td'); port.className = 'port';
+        port.textContent = inst.port;
+        if (svc.name === 'freellm' && inst.port === data.cloneFrom) {
+          const b = document.createElement('span'); b.className = 'badge accent'; b.textContent = 'source'; port.appendChild(b);
+        }
+        const pid = document.createElement('td'); pid.textContent = inst.pid ?? '–';
+        const urls = document.createElement('td'); urls.className = 'urls';
+        if (svc.name === 'aether') {
+          const a = document.createElement('a'); a.href = '#chat'; a.textContent = 'Chat tab';
+          urls.appendChild(a);
+        } else {
+          for (const u of inst.urls) {
+            if (inst.state === 'stopped') {
+              const span = document.createElement('span'); span.className = 'off'; span.textContent = u.replace('http://', '');
+              urls.appendChild(span);
+              continue;
+            }
+            const a = document.createElement('a'); a.href = u; a.textContent = u.replace('http://', ''); a.target = '_blank'; a.rel = 'noopener';
+            urls.appendChild(a);
+          }
+        }
+        // Which agents use this server.
+        const agent = document.createElement('td'); agent.className = 'agentcell';
+        const users = svc.name === 'aether' ? [] : (data.engineers || []).filter(e => e.port === inst.port);
+        if (users.length) {
+          for (const e of users) {
+            const a = document.createElement('a'); a.href = '#agents'; a.textContent = `${e.avatar} ${e.name}`;
+            a.title = `${e.role || 'no role'} · model ${e.model || 'default'}`;
+            agent.appendChild(a);
+          }
+        } else {
+          agent.innerHTML = '<span class="none">–</span>';
+        }
+        const cell = document.createElement('td'); cell.className = 'actions';
+        const actions = document.createElement('div'); actions.className = 'btns';
+        cell.appendChild(actions);
+        actions.appendChild(button('Logs', '', () => showLogs(svc.name, inst.port)));
+        if (svc.name === 'freellm' && inst.port !== data.cloneFrom) {
+          actions.appendChild(button('Clone', '', () => act({ action: 'clone', port: inst.port }, `Copy server ${data.cloneFrom} onto ${inst.port}? It restarts and its own changes are replaced (old DB kept as .bak).`)));
+        }
+        if (inst.state !== 'stopped') {
+          actions.appendChild(button('Stop', 'danger', () => act({ action: 'stop', service: svc.name, port: inst.port })));
+        }
+        tr.append(state, port, pid, urls, agent, cell);
+        rows.appendChild(tr);
+      }
+    }
+  }
+
+  // ── Chat tab team bar: each agent and whether the server behind it runs.
+  function renderTeam(data) {
+    const engs = data.engineers || [];
+    $('teambar').hidden = !engs.length || !chatUp;
+    setHTML($('chips'), engs.map(e => {
+      const title = e.state
+        ? `${e.name} uses ${SVC_LABEL[e.service]} ${e.index} (:${e.port}), which is ${e.state}`
+        : `${e.name} is not one of the servers here; Aether checks it itself`;
+      return `<span class="chip ${e.state || 'ext'}" title="${esc(title)}"><span class="dot"></span><span>${esc(e.avatar)} ${esc(e.name)}</span><small>${e.port ? ':' + e.port : ''}</small></span>`;
+    }).join(''));
+    const ours = engs.filter(e => e.state);
+    const up = ours.filter(e => e.state === 'healthy').length;
+    $('team-summary').textContent = ours.length ? `${up}/${ours.length} servers running` : '';
+
+    // What "Start" has to run: enough servers for every agent, and never fewer than already run
+    // (start N stops servers above N).
+    const plan = [];
+    for (const svc of ['freellm', 'ollama']) {
+      const want = Math.max(0, ...ours.filter(e => e.service === svc && e.state === 'stopped').map(e => e.index));
+      if (!want) continue;
+      const s = data.services.find(x => x.name === svc);
+      const have = Math.max(0, ...(s?.instances || []).filter(i => i.state !== 'stopped').map(i => i.port - s.basePort + 1));
+      plan.push({ service: svc, count: Math.max(want, have) });
+    }
+    const btn = $('team-start');
+    btn.hidden = !plan.length;
+    btn.textContent = 'Start ' + plan.map(p => `${SVC_LABEL[p.service]} ${p.count > 1 ? `1–${p.count}` : '1'}`).join(' + ');
+    btn.onclick = async () => {
+      for (const p of plan) {
+        const r = await act({ action: 'start', ...p });
+        if (!r || !r.ok) { show('servers'); return; }   // the output card there says why
+      }
+    };
+  }
+
+  // ── Agents tab
+  const LEADS = [['', 'Auto'], ['prefer', 'Prefer as lead'], ['never', 'Never lead']];
+  const PROVIDERS = { openai_api: 'API', claude_cli: 'Claude Code', antigravity_cli: 'Antigravity', bob_cli: 'IBM Bob', custom: 'Custom CLI' };
+  let agentCfg = null, agentSessions = [];
+
+  function backendOf(e) {
+    const s = (last?.engineers || []).find(x => x.id === e.id);
+    if (s?.state) return { text: `${SVC_LABEL[s.service]} ${s.index} · :${s.port}`, state: s.state, port: s.port };
+    if (e.provider === 'openai_api') return { text: e.base_url || 'no URL', state: '' };
+    return { text: `${PROVIDERS[e.provider] || e.provider}${e.command ? ` (${e.command})` : ''}`, state: '' };
+  }
+
+  async function loadAgents() {
+    $('agents-off').hidden = chatUp !== false;
+    $('agent-add').disabled = !chatUp;
+    if (!chatUp) { $('agents').replaceChildren(); return; }
+    // Keep cards that have unsaved edits instead of wiping them.
+    if ($('agents').querySelector('.agent.dirty')) return;
+    try {
+      const b = await aether('bootstrap');
+      agentCfg = b.config; agentSessions = b.sessions || [];
+      $('agents-error').hidden = true;
+      renderAgents();
+    } catch (err) {
+      $('agents-error').textContent = `Could not load agents: ${err.message}`;
+      $('agents-error').hidden = false;
+    }
+  }
+
+  function modelOptions(models, current) {
+    const list = [...models];
+    if (current && !list.includes(current)) list.unshift(current);
+    return `<option value="">Default</option>` + list.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+      + `<option value="__custom">Other…</option>`;
+  }
+
+  function agentCard(e, isNew) {
+    const node = document.createElement('section');
+    node.className = `agent glass${isNew ? ' new' : ''}`;
+    node.dataset.id = e.id || '';
+    const be = isNew ? null : backendOf(e);
+    // Backends a new agent can use: every FreeLLMAPI and Ollama server, or any OpenAI-compatible URL.
+    const servers = [];
+    for (const s of last?.services || []) {
+      if (s.name !== 'freellm' && s.name !== 'ollama') continue;
+      const ports = new Set(s.instances.map(i => i.port));
+      for (const i of s.instances) servers.push({ port: i.port, label: `${SVC_LABEL[s.name]} ${i.port - s.basePort + 1} · :${i.port} (${i.state})` });
+      if (!ports.size) servers.push({ port: s.basePort, label: `${SVC_LABEL[s.name]} 1 · :${s.basePort} (not started)` });
+    }
+    node.innerHTML = `
+      <div class="top">
+        <span class="av" style="background:${esc(e.color || '#7aa7ff')}">${esc(e.avatar || '◆')}</span>
+        <input class="field name" data-f="name" value="${esc(e.name)}" placeholder="Agent name" aria-label="Name">
+        ${isNew ? '' : `<button class="btn sm icon ghost danger" data-del title="Delete this agent">✕</button>`}
+      </div>
+      <div class="rows">
+        <label>Role</label><input class="field" data-f="role" list="roles" value="${esc(e.role || '')}" placeholder="e.g. Frontend Developer">
+        ${isNew ? `<label>Server</label><select class="field" data-backend>${servers.map(s => `<option value="${s.port}">${esc(s.label)}</option>`).join('')}<option value="custom">Other OpenAI-compatible URL…</option></select>
+        <label data-c hidden>URL</label><input class="field" data-c data-url hidden placeholder="https://host/v1">
+        <label data-c hidden>API key</label><input class="field" data-c data-key type="password" autocomplete="off" hidden placeholder="optional">` : ''}
+        <label>Model</label><div class="modelrow"><select class="field" data-f="model">${modelOptions([], e.model)}</select><button class="btn sm icon" data-models title="Load the models this server offers">↻</button></div>
+        <label>Lead</label><select class="field" data-f="lead">${LEADS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+        <label>Look</label><div class="look"><input class="field" data-f="avatar" value="${esc(e.avatar || '◆')}" maxlength="2" aria-label="Avatar"><input class="field" type="color" data-f="color" value="${esc(e.color || '#7aa7ff')}" aria-label="Colour"></div>
+      </div>
+      ${isNew ? '' : `<div class="where"><span class="dot ${be.state}"></span><span title="${esc(be.text)}">${esc(be.text)}</span>${e.managed === 'llm' ? '<span class="badge">auto-added</span>' : ''}</div>`}
+      <div class="foot">
+        <button class="btn sm primary" data-save ${isNew ? '' : 'disabled'}>${isNew ? 'Add agent' : 'Save'}</button>
+        ${isNew ? '<button class="btn sm" data-cancel>Cancel</button>' : ''}
+        <span class="note" data-note></span>
+      </div>`;
+    const q = s => node.querySelector(s);
+    q('[data-f="model"]').value = e.model || '';
+    q('[data-f="lead"]').value = e.lead || '';
+    const dirty = () => { if (!isNew) { node.classList.add('dirty'); q('[data-save]').disabled = false; } };
+    node.addEventListener('input', dirty);
+    node.addEventListener('change', dirty);
+    q('[data-f="color"]').addEventListener('input', ev => { q('.av').style.background = ev.target.value; });
+    q('[data-f="avatar"]').addEventListener('input', ev => { q('.av').textContent = ev.target.value || '◆'; });
+
+    const backendUrl = () => {
+      if (!isNew) return e.base_url || '';
+      const v = q('[data-backend]').value;
+      return v === 'custom' ? q('[data-url]').value.trim().replace(/\/+$/, '') : `http://127.0.0.1:${v}/v1`;
+    };
+    let loadedFor = null;
+    async function loadModels() {
+      const sel = q('[data-f="model"]'), btn = q('[data-models]');
+      const url = backendUrl();
+      if (e.provider && e.provider !== 'openai_api') {
+        const r = await aether('list_models', { id: e.id, provider: e.provider, command: e.command || '' }).catch(() => ({ models: [] }));
+        const cur = sel.value; sel.innerHTML = modelOptions((r.models || []).map(m => m.id), cur); sel.value = cur; return;
+      }
+      if (!url || loadedFor === url) return;
+      btn.innerHTML = '<span class="spin"></span>';
+      const port = Number((url.match(/^http:\/\/(?:127\.0\.0\.1|localhost):(\d+)/) || [])[1]);
+      let models;
+      if (port) {
+        // A new agent has no key yet: borrow the id of an agent on the same server so Aether uses its key.
+        const peer = isNew ? (last?.engineers || []).find(x => x.port === port) : e;
+        models = await modelsFor(port, peer?.id);
+      } else {
+        const r = await aether('list_models', { id: e.id || '', provider: 'openai_api', base_url: url, api_key: isNew ? q('[data-key]').value : '' }).catch(err => ({ models: [], error: err.message }));
+        models = (r.models || []).map(m => m.id);
+      }
+      const cur = sel.value;
+      sel.innerHTML = modelOptions(models, cur);
+      sel.value = cur;
+      loadedFor = url;
+      btn.textContent = '↻';
+      btn.title = models.length ? `${models.length} models` : 'No models found (is the server running?)';
+    }
+    q('[data-models]').onclick = () => { loadedFor = null; loadModels(); };
+    q('[data-f="model"]').addEventListener('focus', loadModels, { once: true });
+    q('[data-f="model"]').addEventListener('change', ev => {
+      if (ev.target.value !== '__custom') return;
+      const id = prompt('Model id:');
+      const sel = ev.target;
+      if (id && id.trim()) { sel.insertAdjacentHTML('afterbegin', `<option value="${esc(id.trim())}">${esc(id.trim())}</option>`); sel.value = id.trim(); }
+      else sel.value = e.model || '';
+    });
+    if (isNew) {
+      q('[data-backend]').onchange = () => {
+        const custom = q('[data-backend]').value === 'custom';
+        node.querySelectorAll('[data-c]').forEach(x => { x.hidden = !custom; });
+        loadedFor = null;
+        const sel = q('[data-f="model"]'); sel.innerHTML = modelOptions([], ''); sel.value = '';
+        // Small local models make poor leads.
+        const isOllama = /Ollama/.test(q('[data-backend]').selectedOptions[0].textContent);
+        q('[data-f="lead"]').value = isOllama ? 'never' : '';
+      };
+      q('[data-backend]').onchange();
+      q('[data-cancel]').onclick = () => node.remove();
+    } else {
+      q('[data-del]').onclick = async () => {
+        if (!confirm(`Delete ${e.name}? It is removed from every session.${e.managed === 'llm' ? ' (It comes back on the next sync while its server runs.)' : ''}`)) return;
+        try { agentCfg = await aether('delete_engineer', e.id); node.remove(); chatConfigChanged(); refresh(); }
+        catch (err) { note(err.message, true); }
+      };
+    }
+    function note(text, bad) {
+      const n = q('[data-note]'); n.className = `note${bad ? ' err' : ''}`; n.textContent = text;
+      if (!bad) setTimeout(() => { n.textContent = ''; }, 3500);
+    }
+    q('[data-save]').onclick = async () => {
+      const v = f => q(`[data-f="${f}"]`).value.trim();
+      const name = v('name');
+      if (!name) return note('Give the agent a name.', true);
+      if ((agentCfg?.engineers || []).some(x => x.name.toLowerCase() === name.toLowerCase() && x.id !== e.id)) return note('Another agent already has that name.', true);
+      const model = v('model') === '__custom' ? '' : v('model');
+      const { has_key, ...base } = e;
+      const out = isNew
+        ? { name, role: v('role'), provider: 'openai_api', base_url: backendUrl(), model, lead: v('lead'), avatar: v('avatar') || '◆', color: v('color'), command: '', args: '' }
+        : { ...base, name, role: v('role'), model, lead: v('lead'), avatar: v('avatar') || '◆', color: v('color') };
+      if (isNew && !out.base_url) return note('Enter the server URL.', true);
+      if (isNew && q('[data-key]').value) out.api_key = q('[data-key]').value;
+      q('[data-save]').disabled = true;
+      try {
+        const before = new Set((agentCfg?.engineers || []).map(x => x.id));
+        agentCfg = await aether('save_engineer', out);
+        if (isNew) {
+          // Switch the new agent on in every open session, the way synced agents are.
+          const added = agentCfg.engineers.find(x => !before.has(x.id));
+          if (added) {
+            for (const s of agentSessions.filter(s => !s.archived)) {
+              const active = [...(s.settings.active || [])];
+              if (!active.includes(added.id)) { active.push(added.id); s.settings = { ...s.settings, active }; await aether('update_settings', s.id, s.settings); }
+            }
+          }
+          // FreeLLMAPI servers need their API key; sync fills it in for agents pointing at a running one.
+          if (/^http:\/\/127\.0\.0\.1:\d+\/v1$/.test(out.base_url)) await api('/api/action', { method: 'POST', body: JSON.stringify({ action: 'sync' }) }).catch(() => {});
+          node.remove();
+          chatConfigChanged();
+          await refresh();
+          loadAgents();
+          return;
+        }
+        node.classList.remove('dirty');
+        Object.assign(e, out);
+        note('✓ Saved');
+        chatConfigChanged();
+        refresh();
+      } catch (err) {
+        q('[data-save]').disabled = false;
+        note(err.message, true);
+      }
+    };
+    return node;
+  }
+
+  function renderAgents() {
+    const list = $('agents');
+    list.replaceChildren(...(agentCfg?.engineers || []).map(e => agentCard({ ...e }, false)));
+    if (!list.children.length) list.innerHTML = '<div class="empty glass card">No agents yet. Add one, or start FreeLLMAPI or Ollama servers and they join automatically.</div>';
+  }
+  // Keep each card's server status current without touching what you are editing.
+  function refreshAgentStates() {
+    for (const node of $('agents').querySelectorAll('.agent[data-id]')) {
+      const e = agentCfg?.engineers.find(x => x.id === node.dataset.id);
+      const where = node.querySelector('.where');
+      if (!e || !where) continue;
+      const be = backendOf(e);
+      const dot = where.querySelector('.dot');
+      if (dot) dot.className = `dot ${be.state}`;
+    }
+  }
+  $('agent-add').onclick = () => {
+    if ($('agents').querySelector('.agent.new')) return $('agents').querySelector('.agent.new [data-f="name"]').focus();
+    const n = (agentCfg?.engineers || []).length + 1;
+    const node = agentCard({ name: `Agent${n}`, role: 'Software Engineer', avatar: '◆', color: '#7aa7ff', model: '', lead: '' }, true);
+    $('agents').prepend(node);
+    node.querySelector('[data-f="name"]').select();
+  };
+
+  async function refresh() {
+    try {
+      const data = await api('/api/status');
+      showError('');
+      last = data;
+      render(data);
+      renderTeam(data);
+      if (tab === 'agents') refreshAgentStates();
+      if (!busy && data.busy) setBusy(true, `Running: ./llm ${data.busy}`);
+      else if (busy && !data.busy && $('busy-text').textContent.startsWith('Running:')) setBusy(false);
+    } catch (err) {
+      showError(`Cannot reach the panel: ${err.message}`);
+    }
+  }
+
+  // First view: the one in the URL, else Chat when it is running, else Model servers.
+  refresh().then(() => {
+    const h = location.hash.slice(1);
+    show(TABS.includes(h) || h === 'services' ? h : chatUp ? 'chat' : 'servers');
+  });
+  setInterval(() => { if (!document.hidden) refresh(); }, 4000);
+})();
+</script>
+</body>
+</html>

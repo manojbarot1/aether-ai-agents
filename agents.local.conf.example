@@ -1,0 +1,28 @@
+# This machine's own settings. Copy to agents.local.conf (gitignored) and edit:
+#
+#   cp agents.local.conf.example agents.local.conf && chmod 600 agents.local.conf
+#
+# It is read before agents.conf, so anything set here wins over the shared
+# defaults. Use VAR="${VAR:-value}" if an environment variable should still be
+# able to override it for one run.
+
+# This machine's LAN IP (macOS: ipconfig getifaddr en0; Linux: hostname -I).
+LAN_IP="${LAN_IP:-192.168.1.50}"
+
+# Open the control panel to other devices. Both lines are required: the panel
+# refuses to listen on the network without a token. Make one with:
+#   openssl rand -hex 24
+# PANEL_HOST="${PANEL_HOST:-0.0.0.0}"
+# PANEL_TOKEN="${PANEL_TOKEN:-paste-a-long-random-string-here}"
+
+# Use an aether-code checkout you already have instead of cloning one.
+# AETHER_CODE_DIR="${AETHER_CODE_DIR:-$HOME/code/aether-code}"
+
+# Linux with the Ollama system service: let the instances read the models it
+# already downloaded (see docs/DEPLOY.md, "Ollama models on Linux").
+# export OLLAMA_MODELS="${OLLAMA_MODELS:-/usr/share/ollama/.ollama/models}"
+# export OLLAMA_NOPRUNE=1
+
+# Pre-create the FreeLLMAPI admin on first start (skips the sign-up screen).
+# ADMIN_EMAIL="${ADMIN_EMAIL:-me@example.com}"
+# ADMIN_PASSWORD="${ADMIN_PASSWORD:-change-me}"

@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+# Run several FreeLLMAPI and Ollama instances on consecutive ports, plus a
+# web control panel. Settings live in agents.conf.
+#
+#   ./llm start freellm 5             FreeLLMAPI on 3001-3005
+#   ./llm start ollama 2              Ollama on 11435-11436
+#   ./llm start freellm 5 ollama 2    both at once
+#   ./llm start aether                Aether chat in the browser on :3910
+#   ./llm start panel                 web control panel on :3900
+#   ./llm stop                        stop everything
+#   ./llm stop ollama                 stop every Ollama instance
+#   ./llm stop freellm :3004          stop one instance
+#   ./llm status                      table of every instance
+#   ./llm clone [:port]               copy FreeLLMAPI agent 1 onto the others
+#   ./llm sync                        running instances -> Aether engineers
+#   ./llm logs freellm 3002 [lines]   tail one instance's log
+#   ./llm update                      git pull + rebuild FreeLLMAPI
+#
+# "start <service> N" makes exactly N instances run: missing ones start,
+# extra ones stop. New FreeLLMAPI agents start as a copy of agent 1 (CLONE=0
+# to start them empty).
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 1; }
+die()   { echo "$*" >&2; exit 1; }
+
+# --- start ------------------------------------------------------------------
+
+cmd_start() {
+  local plan=() svc count
+  while (( $# )); do
+    case "$1" in
+      --update) UPDATE=1; shift; continue ;;
+    esac
+    is_service "$1" || die "unknown service '$1' (use: $SERVICES)"
+    svc="$1"; shift
+    if is_single "$svc"; then
+      count=1
+      [[ "${1:-}" =~ ^[0-9]+$ ]] && shift
+    else
+      [[ "${1:-}" =~ ^[1-9][0-9]*$ ]] || die "how many? e.g. ./llm start $svc 3"
+      count="$1"; shift
+    fi
+    plan+=("$svc:$count")
+  done
+  (( ${#plan[@]} )) || usage
+
+  local item base last port failed=0
+  for item in "${plan[@]}"; do
+    svc="${item%%:*}"; count="${item##*:}"
+    svc_prepare "$svc"
+    base="$(svc_base_port "$svc")"; last=$(( base + count - 1 ))
+
+    for port in $(known_ports "$svc"); do
+      if (( port < base || port > last )) && running_pid "$svc" "$port" >/dev/null; then
+        echo "==> scaling $(svc_label "$svc") down"
+        stop_instance "$svc" "$port"
+      fi
+    done
+
+    echo "==> starting $count $(svc_label "$svc") instance(s) on ports $base-$last"
+    for (( port = base; port <= last; port++ )); do
+      if [[ "$svc" == freellm && "${CLONE:-1}" == 1 && "$port" != "$CLONE_FROM" \
+            && ! -f "$(db_file "$port")" && -f "$(db_file "$CLONE_FROM")" ]] \
+         && ! running_pid "$svc" "$port" >/dev/null; then
+        clone_db "$CLONE_FROM" "$port"
+        echo "  freellm :$port cloned from :$CLONE_FROM"
+      fi
+      launch_instance "$svc" "$port"
+    done
+  done
+
+  echo "==> waiting for instances to come up"
+  for item in "${plan[@]}"; do
+    svc="${item%%:*}"; count="${item##*:}"
+    base="$(svc_base_port "$svc")"
+    for (( port = base; port < base + count; port++ )); do
+      wait_healthy "$svc" "$port" || failed=1
+    done
+  done
+  maybe_sync
+  return "$failed"
+}
+
+# Keep Aether's engineers in step with what runs, whenever Aether chat is up.
+maybe_sync() {
+  running_pid aether "$AETHER_PORT" >/dev/null || return 0
+  echo "==> syncing Aether engineers"
+  cmd_sync | sed 's/^/  /' || true
+}
+
+# --- stop -------------------------------------------------------------------
+
+cmd_stop() {
+  local svcs="$SERVICES" sel="${2:-}" svc ports port any=0
+  if [[ -n "${1:-}" && "$1" != all ]]; then
+    is_service "$1" || die "unknown service '$1' (use: $SERVICES or all)"
+    svcs="$1"
+  fi
+  for svc in $svcs; do
+    if [[ -z "$sel" ]]; then
+      ports="$(known_ports "$svc")"
+    elif [[ "$sel" =~ ^:([0-9]+)$ ]]; then
+      ports="${BASH_REMATCH[1]}"
+    elif [[ "$sel" =~ ^[1-9][0-9]*$ ]]; then
+      ports="$(seq "$(svc_base_port "$svc")" $(( $(svc_base_port "$svc") + sel - 1 )))"
+    else
+      die "usage: ./llm stop [service|all] [N | :port]"
+    fi
+    for port in $ports; do
+      running_pid "$svc" "$port" >/dev/null || [[ -n "$sel" ]] || continue
+      (( any )) || echo "==> stopping"
+      any=1
+      stop_instance "$svc" "$port"
+    done
+  done
+  (( any )) || echo "nothing running"
+  [[ "$svcs" == aether || "$svcs" == panel ]] || maybe_sync
+}
+
+# --- status -----------------------------------------------------------------
+
+inst_state() {
+  if running_pid "$1" "$2" >/dev/null; then
+    if inst_alive "$1" "$2"; then echo healthy; else echo starting; fi
+  else
+    echo stopped
+  fi
+}
+
+cmd_status() {
+  local json=0 only="" svc port pid state
+  while (( $# )); do
+    case "$1" in
+      --json) json=1 ;;
+      *) is_service "$1" || die "unknown service '$1'"; only="$1" ;;
+    esac
+    shift
+  done
+
+  if (( json )); then
+    local first_svc=1 first_inst url urls
+    printf '{"lanIp":"%s","cloneFrom":%s,"services":[' "$LAN_IP" "$CLONE_FROM"
+    for svc in ${only:-$SERVICES}; do
+      (( first_svc )) || printf ','
+      first_svc=0
+      printf '{"name":"%s","label":"%s","basePort":%s,"instances":[' \
+        "$svc" "$(svc_label "$svc")" "$(svc_base_port "$svc")"
+      first_inst=1
+      for port in $(known_ports "$svc"); do
+        (( first_inst )) || printf ','
+        first_inst=0
+        pid="$(running_pid "$svc" "$port" || true)"
+        state="$(inst_state "$svc" "$port")"
+        urls=""
+        for url in $(inst_urls "$svc" "$port"); do urls="$urls${urls:+,}\"$url\""; done
+        printf '{"port":%s,"state":"%s","pid":%s,"urls":[%s]}' \
+          "$port" "$state" "${pid:-null}" "$urls"
+      done
+      printf ']}'
+    done
+    printf ']}\n'
+    return 0
+  fi
+
+  local rows=0
+  printf '%-9s %-7s %-9s %-8s %s\n' SERVICE PORT STATE PID URL
+  for svc in ${only:-$SERVICES}; do
+    for port in $(known_ports "$svc"); do
+      pid="$(running_pid "$svc" "$port" || echo -)"
+      state="$(inst_state "$svc" "$port")"
+      printf '%-9s %-7s %-9s %-8s %s\n' "$svc" "$port" "$state" "$pid" \
+        "$(inst_urls "$svc" "$port" | sed 's/ /  /g')"
+      rows=1
+    done
+  done
+  (( rows )) || echo "(no instances yet - try ./llm start freellm 1)"
+}
+
+# --- clone ------------------------------------------------------------------
+
+# Re-copy FreeLLMAPI agent CLONE_FROM onto other agents. Each target is
+# stopped, its old DB is kept as freellmapi.db.bak, and it is restarted if it
+# was running. License, logins and request history are not copied.
+cmd_clone() {
+  [[ -f "$(db_file "$CLONE_FROM")" ]] || die "freellm :$CLONE_FROM has no database yet"
+  local targets port db restart=()
+  if [[ -n "${1:-}" ]]; then
+    [[ "$1" =~ ^:([0-9]+)$ ]] || die "usage: ./llm clone [:port]"
+    targets="${BASH_REMATCH[1]}"
+  else
+    targets="$(known_ports freellm | grep -vx "$CLONE_FROM" || true)"
+  fi
+  [[ -n "$targets" ]] || { echo "no other FreeLLMAPI agents to clone onto"; return 0; }
+
+  for port in $targets; do
+    if [[ "$port" == "$CLONE_FROM" ]]; then echo "  skipping :$port (it is the source)"; continue; fi
+    if running_pid freellm "$port" >/dev/null; then restart+=("$port"); fi
+    stop_instance freellm "$port"
+    db="$(db_file "$port")"
+    if [[ -f "$db" ]]; then
+      # Keep the WAL with the backup: it can hold the agent's latest writes.
+      mv -f "$db" "$db.bak"
+      rm -f "$db.bak-wal" "$db.bak-shm"
+      if [[ -f "$db-wal" ]]; then mv -f "$db-wal" "$db.bak-wal"; fi
+      rm -f "$db-shm"
+    fi
+    clone_db "$CLONE_FROM" "$port"
+    echo "  freellm :$port cloned from :$CLONE_FROM (previous DB saved as $db.bak)"
+  done
+
+  for port in "${restart[@]+"${restart[@]}"}"; do
+    launch_instance freellm "$port"
+    wait_healthy freellm "$port" || true
+  done
+}
+
+# --- logs / update ----------------------------------------------------------
+
+cmd_logs() {
+  local svc="${1:-}" port="${2:-}" lines="${3:-80}"
+  is_service "$svc" && [[ "$port" =~ ^[0-9]+$ && "$lines" =~ ^[0-9]+$ ]] \
+    || die "usage: ./llm logs <service> <port> [lines]"
+  local f; f="$(log_file "$svc" "$port")"
+  [[ -f "$f" ]] || die "no log at $f"
+  tail -n "$lines" "$f"
+}
+
+cmd_sync() {
+  [[ -f "$AETHER_CODE_DIR/web.py" ]] || die "Aether is not set up yet: ./llm start aether"
+  local py
+  py="$(aether_python)" || die "Aether needs Python 3.10+: brew install python"
+  cmd_status --json | "$py" "$SCRIPT_DIR/aether-sync.py" --aether-dir "$AETHER_CODE_DIR" --run-dir "$RUN_DIR"
+}
+
+cmd_update() {
+  UPDATE=1 prepare_freellm
+  echo "==> rebuilt. Restart FreeLLMAPI to use it: ./llm stop freellm && ./llm start freellm N"
+}
+
+case "${1:-}" in
+  start)  shift; cmd_start "$@" ;;
+  stop)   shift; cmd_stop "$@" ;;
+  status) shift; cmd_status "$@" ;;
+  clone)  shift; cmd_clone "$@" ;;
+  logs)   shift; cmd_logs "$@" ;;
+  sync)   shift; cmd_sync ;;
+  update) shift; cmd_update ;;
+  *) usage ;;
+esac

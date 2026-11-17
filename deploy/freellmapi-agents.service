@@ -1,0 +1,31 @@
+# systemd USER unit: starts the stack at boot (with lingering enabled, even
+# when nobody is logged in) and stops it on shutdown.
+#
+# deploy/deploy-remote.sh --service installs this for you. By hand, on the
+# Linux machine that runs the stack:
+#
+#   mkdir -p ~/.config/systemd/user
+#   sed -e "s|@DIR@|$PWD|g" -e "s|@SERVICES@|freellm 5 ollama 1 aether panel|g" \
+#       deploy/freellmapi-agents.service > ~/.config/systemd/user/freellmapi-agents.service
+#   sudo loginctl enable-linger "$USER"
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now freellmapi-agents.service
+#
+# ./llm keeps working alongside it: the panel and ./llm start/stop scale
+# instances inside the running service.
+
+[Unit]
+Description=FreeLLMAPI agents + Ollama + Aether chat + control panel (@DIR@)
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@DIR@
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=@DIR@/llm start @SERVICES@
+ExecStop=@DIR@/llm stop
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
