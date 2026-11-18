@@ -23,6 +23,7 @@ browser with those instances as its engineers.
 |---|---|
 | [docs/INSTALL.md](docs/INSTALL.md) | Requirements and step-by-step installation on macOS, Debian and Ubuntu, first run, first FreeLLMAPI login. |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | `agents.conf` vs `agents.local.conf`, every setting, opening the panel to your network, security. |
+| [docs/TEAM-JOBS.md](docs/TEAM-JOBS.md) | How the chat runs your agents as a team on a project: sizing, the lead's plan and file ownership, what each agent sees, verification and repair rounds, and how to write a good request. |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Step-by-step plan to deploy to another machine over SSH (`deploy/deploy-remote.sh`), copying agent data, starting at boot with systemd, updating, troubleshooting. |
 
 ## Quick start

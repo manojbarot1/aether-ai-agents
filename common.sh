@@ -389,8 +389,9 @@ prepare_aether() {
 install_aether_helpers() {
   local bin="$HOME/.local/bin" name src
   mkdir -p "$bin"
-  for name in freeport aserve; do
-    src="$AETHER_CODE_DIR/$name.py"
+  # name:file — verify-web drives headless Chrome to check a page really works (see docs/TEAM-JOBS.md)
+  for pair in freeport:freeport.py aserve:aserve.py verify-web:verify_web.py; do
+    name="${pair%%:*}" src="$AETHER_CODE_DIR/${pair#*:}"
     [[ -f "$src" ]] || continue
     chmod +x "$src"
     if [[ -L "$bin/$name" || ! -e "$bin/$name" ]]; then
