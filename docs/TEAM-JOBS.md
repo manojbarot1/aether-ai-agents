@@ -106,7 +106,7 @@ Before the lead looks at anything, Aether runs these checks itself. A model can'
 |---|---|
 | **Tests** | `npm test`, `node --test <files>`, `python3 -m unittest` / `pytest`, and a Python compile. |
 | **Deliverables** | Every file in the plan exists and has no `TODO` / not-implemented parts. |
-| **Contract check** (`contract_check.py`) | JS imports naming things the other file doesn't export, imports of missing files, HTML referencing missing files, element ids the scripts look up that the page doesn't have, CSS state classes (`.modal.active`) that no script ever adds, and images, sounds or fonts that are empty or fake (SVG text saved as `earth.jpg`). It reports all of them at once. |
+| **Contract check** (`contract_check.py`) | JS imports naming things the other file doesn't export, imports of missing files, HTML referencing missing files, element ids the scripts look up that the page doesn't have, CSS state classes (`.modal.active`) that no script ever adds, images, sounds or fonts that are empty or fake (SVG text saved as `earth.jpg`), and bare imports the page's importmap can't resolve (a prefix key like `"three/addons"` missing its trailing `/`). It reports all of them at once. |
 | **Browser check** (`verify-web`) | Aether serves the page and loads it in headless Chrome. It reports uncaught errors, `console.error` and failed requests, what is on screen, dialogs left open over the page, and an empty page. It clicks every button and reports any errors, then runs the tester's steps. |
 
 Then:
