@@ -96,7 +96,10 @@ the page:
  {"expect": ".card", "text": "Buy milk"}, {"reload": true}, {"expect": ".card", "text": "Buy milk"}]
 ```
 
-The tester is sent back if the file is missing, invalid or too short, and it may not change the app.
+It also gets a starter built from the page's real buttons and ids, so it can't copy the example's ids. It's sent
+back with the exact problem if the file is missing, invalid, too short, a list of sentences instead of steps, or
+has steps with no known action. It may not change the app. A step that does an action and a check at once
+(`{"click": "#a", "expect": "#b"}`) is run as two steps, so the check really runs.
 
 ## 5. Verify: checks Aether runs itself, then the lead
 
@@ -111,11 +114,13 @@ Before the lead looks at anything, Aether runs these checks itself. A model can'
 
 Then:
 
-- **The lead** checks the plan's requirements one by one with evidence. If Aether's checks failed, the verdict
-  is FAIL, whatever the lead says.
+- **If Aether's checks failed,** the verdict is FAIL and the job goes straight to repair. The lead doesn't review
+  a failing build (leads asked to do that mostly wrote "all verified").
+- **Once the checks pass,** the lead checks the plan's requirements one by one with evidence.
 - **Repair rounds:** one **integrator** per round gets the full list of failures and fixes them in any file.
   It's chosen from the owners of the failing files, in rotation. One person at a time, because parallel fixers
-  undo each other's changes. It must re-run **all** the checks, not only the one that failed.
+  undo each other's changes. It must re-run **all** the checks with one command, `sh .aether/check.sh`, which
+  Aether writes for it.
 - **Rounds:** up to 4 verifications (3 repair rounds).
 - **Cleanup:** servers left running by earlier steps are stopped before each round.
 
