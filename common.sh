@@ -380,4 +380,21 @@ prepare_aether() {
     echo "AETHER_HOST=$AETHER_HOST needs AETHER_WEB_TOKEN in agents.local.conf: Aether engineers can run commands on this machine." >&2
     return 1
   fi
+  install_aether_helpers
+}
+
+# Aether tells its engineers to use `freeport` (first free port) and `aserve <dir>` (serve a folder on a
+# free port). The desktop app ships them in ~/.local/bin; browser mode needs them there too, or every
+# "start a test server" step fails and the team ends without verifying anything.
+install_aether_helpers() {
+  local bin="$HOME/.local/bin" name src
+  mkdir -p "$bin"
+  for name in freeport aserve; do
+    src="$AETHER_CODE_DIR/$name.py"
+    [[ -f "$src" ]] || continue
+    chmod +x "$src"
+    if [[ -L "$bin/$name" || ! -e "$bin/$name" ]]; then
+      ln -sf "$src" "$bin/$name"
+    fi
+  done
 }
