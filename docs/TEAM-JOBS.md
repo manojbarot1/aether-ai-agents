@@ -46,6 +46,12 @@ Guards in this step:
 - **Read-only:** the lead may only look around. It can't write files (free models like to start building alone
   here).
 - **Cut-off plans:** if the plan stops before its Tasks, Aether asks the lead for just the Tasks.
+- **Plan ends when the Tasks are written:** acceptance-check commands in the plan aren't run then (nothing
+  exists yet). They run at verification.
+- **Unowned files:** a file the Architecture names but no task owns (often the entry `js/main.js`) is given to a
+  teammate: entry points to the page's owner, others to the owner of files in the same folder.
+- **Versions and assets:** the lead pins one version of a library and its add-ons. Images and textures are
+  planned as drawn in code or as real `.svg`, because no agent can write a binary file.
 
 The plan is saved in the project as `.aether/PLAN.md`.
 
@@ -69,7 +75,12 @@ Rules:
 - **Repeat reads:** a repeated identical read-only command, with nothing changed since, is not run again.
 - **Command limit:** at most 4 commands run per reply, and the agent is told about any it has to resend.
 - **Cut-off replies:** a reply that stops at the provider's length limit, or inside an unclosed code block (a
-  half-written file), is continued automatically.
+  half-written file), is continued automatically. A continuation that re-opens the block or repeats the last lines
+  is cleaned before it's joined on.
+- **Broken file blocks:** an ```aether block with bad JSON is repaired where the file is still complete: wrong
+  closing brackets, JS escapes like `\'`, quotes left unescaped in HTML. If nothing can be recovered, the agent
+  is told exactly why (cut off at N characters, or the JSON error and where) instead of "you did nothing".
+- **One server per folder:** `aserve .` reuses the server already serving that folder.
 - **Runaway replies:** pages of repetition, or another tool-call syntax, are cut and the agent is asked again.
 
 ## 4. Test: a tester writes acceptance tests
@@ -95,7 +106,7 @@ Before the lead looks at anything, Aether runs these checks itself. A model can'
 |---|---|
 | **Tests** | `npm test`, `node --test <files>`, `python3 -m unittest` / `pytest`, and a Python compile. |
 | **Deliverables** | Every file in the plan exists and has no `TODO` / not-implemented parts. |
-| **Contract check** (`contract_check.py`) | JS imports naming things the other file doesn't export, imports of missing files, HTML referencing missing files, element ids the scripts look up that the page doesn't have, and CSS state classes (`.modal.active`) that no script ever adds. It reports all of them at once. |
+| **Contract check** (`contract_check.py`) | JS imports naming things the other file doesn't export, imports of missing files, HTML referencing missing files, element ids the scripts look up that the page doesn't have, CSS state classes (`.modal.active`) that no script ever adds, and images, sounds or fonts that are empty or fake (SVG text saved as `earth.jpg`). It reports all of them at once. |
 | **Browser check** (`verify-web`) | Aether serves the page and loads it in headless Chrome. It reports uncaught errors, `console.error` and failed requests, what is on screen, dialogs left open over the page, and an empty page. It clicks every button and reports any errors, then runs the tester's steps. |
 
 Then:
